@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_NAME="TypelessClipbridge"
 VERSION="2026.05.29"
-RAW_BASE="${TCB_BASE_URL:-https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main}"
+DEFAULT_BASE_URLS=$'https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main\nhttps://fastly.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main\nhttps://gcore.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main\nhttps://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main'
 PREFIX="${TCB_PREFIX:-$HOME/.typeless-clipbridge}"
 BIN_DIR="$PREFIX/bin"
 PEERS_CSV="${TCB_PEERS:-}"
@@ -17,6 +17,24 @@ INSTALL_TYPELESS="auto"
 DRY_RUN=0
 YES=0
 ACTION="install"
+
+if [[ -n "${TCB_BASE_URL:-}" ]]; then
+  BASE_URLS="$TCB_BASE_URL"
+elif [[ -n "${TCB_BASE_URLS:-}" ]]; then
+  BASE_URLS="$TCB_BASE_URLS"
+else
+  BASE_URLS="$DEFAULT_BASE_URLS"
+fi
+
+first_base_url() {
+  local base
+  for base in $BASE_URLS; do
+    printf '%s\n' "${base%/}"
+    return 0
+  done
+}
+
+ACTIVE_BASE_URL="$(first_base_url)"
 
 case "$(uname -s)" in
   Darwin)
@@ -38,8 +56,8 @@ usage() {
 Typeless Clipbridge one-line installer.
 
 Quick start:
-  curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh
-  curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x
+  curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh
+  curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh -s -- --peer user@100.x.x.x
 
 Options:
   --peer user@host              Add a clipboard peer over SSH. Repeatable.
@@ -212,22 +230,38 @@ find_tailscale() {
 download_asset() {
   local remote="$1"
   local dest="$2"
-  local url="${RAW_BASE}/${remote}"
+  local base url
 
   if [[ "$DRY_RUN" == "1" ]]; then
-    log "dry-run: download ${url} -> ${dest}"
+    log "dry-run: download ${ACTIVE_BASE_URL}/${remote} -> ${dest}"
     return 0
   fi
 
   mkdir -p "$(dirname "$dest")"
   if [[ -n "${TCB_DEV_ROOT:-}" && -f "${TCB_DEV_ROOT}/${remote}" ]]; then
     cp "${TCB_DEV_ROOT}/${remote}" "$dest"
-  elif command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$url" -o "$dest"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$dest" "$url"
   else
-    fail "curl or wget is required"
+    if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+      fail "curl or wget is required"
+    fi
+
+    for base in $BASE_URLS; do
+      base="${base%/}"
+      url="${base}/${remote}"
+      if command -v curl >/dev/null 2>&1; then
+        if curl -fsSL --connect-timeout 8 --retry 1 "$url" -o "$dest" 2>/dev/null; then
+          ACTIVE_BASE_URL="$base"
+          export TCB_BASE_URL="$base"
+          break
+        fi
+      elif wget -q --timeout=8 -O "$dest" "$url" 2>/dev/null; then
+        ACTIVE_BASE_URL="$base"
+        export TCB_BASE_URL="$base"
+        break
+      fi
+    done
+
+    [[ -s "$dest" ]] || fail "failed to download ${remote} from all mirrors"
   fi
   chmod +x "$dest"
 }

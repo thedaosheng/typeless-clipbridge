@@ -12,8 +12,8 @@ Typeless Clipbridge is a macOS-first workflow for turning completed Typeless dic
 The public installer also provides an OpenClaw-style one-line deployment path for Tailscale-connected clipboard sync:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh
-curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x
+curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh -s -- --peer user@100.x.x.x
 ```
 
 Use this skill when the user mentions Typeless, RightCtrl-triggered dictation, shared clipboards, `pbcopy`, `pbpaste`, Tailscale, launchd, systemd user services, or Typeless output not appearing in a clipboard-based cross-device setup.
@@ -40,20 +40,22 @@ The clipboard sync daemon supports macOS first and Linux best-effort. Linux uses
 Use the shortest entrypoint for normal deployment:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh
 ```
 
 Use `--peer` to sync with another Tailscale-reachable machine over SSH:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x
+curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh -s -- --peer user@100.x.x.x
 ```
 
 On macOS, pass `--typeless` to force-install the Typeless watcher even if the database has not been created yet:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x --typeless
+curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh -s -- --peer user@100.x.x.x --typeless
 ```
+
+The entrypoint and installer fall back across jsDelivr, Fastly jsDelivr, Gcore jsDelivr, and GitHub raw so deployment does not depend on direct access to `raw.githubusercontent.com`.
 
 After installation, use:
 

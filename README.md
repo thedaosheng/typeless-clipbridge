@@ -7,19 +7,25 @@ macOS-first clipboard bridge for Typeless dictation and Tailscale-connected mach
 Default installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh
 ```
 
 Install clipboard sync against one peer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x
+curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh -s -- --peer user@100.x.x.x
 ```
 
 Install on a Mac that has Typeless and a Tailscale peer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x --typeless
+curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | sh -s -- --peer user@100.x.x.x --typeless
+```
+
+The installer itself falls back across jsDelivr, Fastly jsDelivr, Gcore jsDelivr, and GitHub raw for every later download. For a single paste command with initial mirror fallback too:
+
+```bash
+sh -c 't=$(mktemp); for u in https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i https://fastly.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i https://gcore.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i; do curl -fsSL "$u" -o "$t" && sh "$t" "$@"; r=$?; rm -f "$t"; exit $r; done; rm -f "$t"; exit 1' sh
 ```
 
 ## What It Does
