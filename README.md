@@ -31,7 +31,7 @@ sh -c 't=$(mktemp); for u in https://cdn.jsdelivr.net/gh/thedaosheng/typeless-cl
 ## What It Does
 
 - Detects macOS or Linux.
-- Detects Tailscale and can install it when practical.
+- Detects Tailscale and can install it when practical: official Linux installer, Homebrew cask, or the official macOS `.pkg`.
 - Installs a per-user clipboard sync daemon.
 - On macOS, installs a Typeless SQLite watcher when Typeless is present or `--typeless` is passed.
 - Provides a local `tcb` command at `~/.typeless-clipbridge/bin/tcb`.
@@ -53,4 +53,4 @@ The primary supported platform is macOS. Linux support is best-effort for peer c
 
 This follows the OpenClaw-style deployment shape: a tiny public curl entrypoint delegates to a layered installer, then the installer handles OS detection, dependency checks, daemon installation, and doctor/status commands.
 
-Tailscale is the network substrate. Linux can use the official Tailscale install script; macOS is guided toward the official Standalone app, with Homebrew cask as an automated path when Homebrew is present.
+Tailscale is the network substrate. Linux can use the official Tailscale install script; macOS uses Homebrew cask when available and otherwise downloads the official Standalone `.pkg` from `pkgs.tailscale.com`.

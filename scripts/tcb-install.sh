@@ -227,6 +227,36 @@ find_tailscale() {
   return 1
 }
 
+install_macos_tailscale_pkg() {
+  local index_url="https://pkgs.tailscale.com/stable/"
+  local pkg_href pkg_url pkg_file
+
+  if [[ "$DRY_RUN" == "1" ]]; then
+    log "dry-run: download latest Tailscale macOS pkg from ${index_url}"
+    run sudo installer -pkg "/tmp/Tailscale-latest-macos.pkg" -target /
+    return 0
+  fi
+
+  command -v curl >/dev/null 2>&1 || return 1
+
+  pkg_href="$(curl -fsSL --connect-timeout 12 "$index_url" \
+    | grep -Eo 'href="[^"]*Tailscale-[^"]+-macos\.pkg"' \
+    | head -n 1 \
+    | sed -E 's/^href="([^"]+)"/\1/' || true)"
+
+  [[ -n "$pkg_href" ]] || return 1
+
+  case "$pkg_href" in
+    http*) pkg_url="$pkg_href" ;;
+    *) pkg_url="${index_url}${pkg_href}" ;;
+  esac
+
+  pkg_file="$(mktemp "${TMPDIR:-/tmp}/Tailscale.XXXXXX.pkg")" || return 1
+  curl -fsSL --connect-timeout 20 "$pkg_url" -o "$pkg_file"
+  sudo installer -pkg "$pkg_file" -target /
+  rm -f "$pkg_file"
+}
+
 download_asset() {
   local remote="$1"
   local dest="$2"
@@ -308,8 +338,13 @@ install_tailscale_if_needed() {
           run brew install --cask tailscale
           ts="$(find_tailscale 2>/dev/null || true)"
         else
-          warn "Tailscale is missing. Install the Standalone macOS app from https://pkgs.tailscale.com/stable/#macos and rerun this installer."
-          return 0
+          log "installing Tailscale macOS app with the official pkg installer"
+          if install_macos_tailscale_pkg; then
+            ts="$(find_tailscale 2>/dev/null || true)"
+          else
+            warn "Tailscale is missing. Install the Standalone macOS app from https://pkgs.tailscale.com/stable/#macos and rerun this installer."
+            return 0
+          fi
         fi
         ;;
     esac

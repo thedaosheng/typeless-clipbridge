@@ -57,6 +57,8 @@ curl -fsSL https://cdn.jsdelivr.net/gh/thedaosheng/typeless-clipbridge@main/i | 
 
 The entrypoint and installer fall back across jsDelivr, Fastly jsDelivr, Gcore jsDelivr, and GitHub raw so deployment does not depend on direct access to `raw.githubusercontent.com`.
 
+If Tailscale is missing, the installer can install it as part of the same one-line flow. Linux uses Tailscale's official installer; macOS uses Homebrew cask when available and otherwise downloads the official Standalone `.pkg`.
+
 After installation, use:
 
 ```bash
