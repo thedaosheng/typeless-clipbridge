@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_NAME="TypelessClipbridge"
+PREFIX="${TCB_PREFIX:-$HOME/.typeless-clipbridge}"
+BIN_DIR="$PREFIX/bin"
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  STATE_DIR="${TCB_STATE_DIR:-$HOME/Library/Application Support/${APP_NAME}}"
+  CLIP_LABEL="com.typelessclipbridge.clip-sync"
+  TYPELESS_LABEL="com.typelessclipbridge.typeless-watch"
+else
+  STATE_DIR="${TCB_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/typeless-clipbridge}"
+  CLIP_LABEL="typeless-clipbridge-clip-sync.service"
+  TYPELESS_LABEL=""
+fi
+
+usage() {
+  cat <<'USAGE'
+typeless-clipbridge control
+
+Usage:
+  tcb status
+  tcb doctor
+  tcb logs [clip|typeless]
+  tcb restart
+  tcb print-latest
+  tcb uninstall
+USAGE
+}
+
+find_tailscale() {
+  if command -v tailscale >/dev/null 2>&1; then
+    command -v tailscale
+    return 0
+  fi
+  if [[ -x /Applications/Tailscale.app/Contents/MacOS/Tailscale ]]; then
+    printf '/Applications/Tailscale.app/Contents/MacOS/Tailscale\n'
+    return 0
+  fi
+  return 1
+}
+
+show_macos_service() {
+  local label="$1"
+  if launchctl print "gui/$(id -u)/${label}" >/dev/null 2>&1; then
+    echo "  ${label}: loaded"
+  else
+    echo "  ${label}: not loaded"
+  fi
+}
+
+status() {
+  echo "typeless-clipbridge"
+  echo "  os: $(uname -s) $(uname -m)"
+  echo "  prefix: $PREFIX"
+  echo "  state: $STATE_DIR"
+
+  if ts="$(find_tailscale 2>/dev/null)"; then
+    echo "  tailscale: $ts"
+    "$ts" ip -4 >/dev/null 2>&1 && echo "  tailnet: connected" || echo "  tailnet: not connected"
+  else
+    echo "  tailscale: not found"
+  fi
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    show_macos_service "$CLIP_LABEL"
+    show_macos_service "$TYPELESS_LABEL"
+  elif command -v systemctl >/dev/null 2>&1; then
+    systemctl --user is-active "$CLIP_LABEL" >/dev/null 2>&1 && \
+      echo "  ${CLIP_LABEL}: active" || echo "  ${CLIP_LABEL}: inactive"
+  fi
+}
+
+doctor() {
+  status
+  echo
+  echo "checks:"
+
+  for cmd in ssh bash; do
+    command -v "$cmd" >/dev/null 2>&1 && echo "  ${cmd}: ok" || echo "  ${cmd}: missing"
+  done
+
+  case "$(uname -s)" in
+    Darwin)
+      for cmd in pbcopy pbpaste sqlite3 launchctl plutil; do
+        command -v "$cmd" >/dev/null 2>&1 && echo "  ${cmd}: ok" || echo "  ${cmd}: missing"
+      done
+      [[ -f "$HOME/Library/Application Support/Typeless/typeless.db" ]] && \
+        echo "  typeless db: ok" || echo "  typeless db: missing"
+      ;;
+    Linux)
+      if command -v wl-copy >/dev/null 2>&1 || command -v xclip >/dev/null 2>&1 || command -v xsel >/dev/null 2>&1; then
+        echo "  linux clipboard provider: ok"
+      else
+        echo "  linux clipboard provider: file mirror fallback"
+      fi
+      ;;
+  esac
+}
+
+logs() {
+  local which="${1:-clip}"
+  local file
+  case "$which" in
+    typeless) file="$STATE_DIR/watcher.log" ;;
+    *) file="$STATE_DIR/clip-sync.log" ;;
+  esac
+  mkdir -p "$STATE_DIR"
+  touch "$file"
+  tail -n 120 -f "$file"
+}
+
+restart() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    launchctl kickstart -k "gui/$(id -u)/${CLIP_LABEL}" >/dev/null 2>&1 || true
+    launchctl kickstart -k "gui/$(id -u)/${TYPELESS_LABEL}" >/dev/null 2>&1 || true
+  elif command -v systemctl >/dev/null 2>&1; then
+    systemctl --user restart "$CLIP_LABEL"
+  fi
+}
+
+print_latest() {
+  if [[ -x "$BIN_DIR/typeless-watch.zsh" ]]; then
+    "$BIN_DIR/typeless-watch.zsh" --print-latest
+  else
+    echo "typeless watcher is not installed" >&2
+    exit 1
+  fi
+}
+
+uninstall() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/${CLIP_LABEL}.plist" >/dev/null 2>&1 || true
+    launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/${TYPELESS_LABEL}.plist" >/dev/null 2>&1 || true
+    rm -f "$HOME/Library/LaunchAgents/${CLIP_LABEL}.plist"
+    rm -f "$HOME/Library/LaunchAgents/${TYPELESS_LABEL}.plist"
+  elif command -v systemctl >/dev/null 2>&1; then
+    systemctl --user disable --now "$CLIP_LABEL" >/dev/null 2>&1 || true
+    rm -f "$HOME/.config/systemd/user/${CLIP_LABEL}"
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+  fi
+  echo "Removed services. Installed files remain at $PREFIX; state remains at $STATE_DIR."
+}
+
+cmd="${1:-status}"
+shift || true
+
+case "$cmd" in
+  status) status "$@" ;;
+  doctor) doctor "$@" ;;
+  logs) logs "$@" ;;
+  restart) restart "$@" ;;
+  print-latest) print_latest "$@" ;;
+  uninstall) uninstall "$@" ;;
+  -h|--help|help) usage ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

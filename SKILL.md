@@ -7,21 +7,65 @@ description: Use this macOS-only skill when the user wants Typeless dictation re
 
 ## Overview
 
-Typeless Clipbridge is a macOS-only workflow for turning completed Typeless dictation results into reliable clipboard updates. It watches Typeless' local SQLite history, copies new `refined_text` values to the macOS clipboard with delayed verification retries, and can optionally push the same text to a remote Mac clipboard over SSH.
+Typeless Clipbridge is a macOS-first workflow for turning completed Typeless dictation results into reliable clipboard updates and propagating clipboard text across Tailscale-connected machines. On macOS, it watches Typeless' local SQLite history, copies new `refined_text` values to the clipboard with delayed verification retries, and can participate in cross-device clipboard sync over SSH.
 
-Use this skill when the user mentions Typeless, RightCtrl-triggered dictation, shared clipboards, `pbcopy`, `pbpaste`, launchd, or Typeless output not appearing in a clipboard-based cross-device setup.
+The public installer also provides an OpenClaw-style one-line deployment path for Tailscale-connected clipboard sync:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh
+curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x
+```
+
+Use this skill when the user mentions Typeless, RightCtrl-triggered dictation, shared clipboards, `pbcopy`, `pbpaste`, Tailscale, launchd, systemd user services, or Typeless output not appearing in a clipboard-based cross-device setup.
 
 ## Platform Boundary
 
-This skill currently supports macOS only. If `uname -s` is not `Darwin`, stop and explain that the scripts are macOS-specific because they depend on launchd, `pbcopy`, `pbpaste`, and Typeless' macOS application data path.
+The Typeless watcher currently supports macOS only because it depends on Typeless' macOS application data path and macOS clipboard tools.
+
+The clipboard sync daemon supports macOS first and Linux best-effort. Linux uses Wayland clipboard tools, X11 clipboard tools, or a file mirror fallback when no GUI clipboard is available.
 
 ## Included Scripts
 
 - `scripts/20260529-cc-install-typeless-clipbridge.sh`: installs the watcher as a user LaunchAgent.
 - `scripts/20260529-cc-typeless-clipbridge.zsh`: polls Typeless SQLite history and copies new results to the clipboard.
 - `scripts/20260529-cc-clipboard-sync-macos.sh`: optional UTF-8-safe one-way clipboard pull template for Mac-to-Mac shared clipboard setups.
+- `i`: shortest public curl entrypoint.
+- `install.sh`: stable bootstrap that fetches the layered installer.
+- `scripts/tcb-install.sh`: OS detection, dependency checks, Tailscale handling, service installation.
+- `scripts/tcb-clip-sync.sh`: cross-peer clipboard sync daemon.
+- `scripts/tcb`: local status, doctor, logs, restart, and uninstall helper.
+
+## One-Line Install Workflow
+
+Use the shortest entrypoint for normal deployment:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh
+```
+
+Use `--peer` to sync with another Tailscale-reachable machine over SSH:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x
+```
+
+On macOS, pass `--typeless` to force-install the Typeless watcher even if the database has not been created yet:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thedaosheng/typeless-clipbridge/main/i | sh -s -- --peer user@100.x.x.x --typeless
+```
+
+After installation, use:
+
+```bash
+~/.typeless-clipbridge/bin/tcb status
+~/.typeless-clipbridge/bin/tcb doctor
+~/.typeless-clipbridge/bin/tcb logs
+```
 
 ## Install Workflow
+
+The legacy Typeless-only installer remains available for direct macOS watcher installs.
 
 1. Confirm macOS and required tools:
 
