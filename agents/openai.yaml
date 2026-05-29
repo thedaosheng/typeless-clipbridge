@@ -1,0 +1,4 @@
+interface:
+  display_name: "Typeless Clipbridge"
+  short_description: "macOS Typeless dictation to clipboard bridge"
+  default_prompt: "Use $typeless-clipbridge when installing, verifying, or troubleshooting Typeless dictation output copied into macOS or shared clipboards."
